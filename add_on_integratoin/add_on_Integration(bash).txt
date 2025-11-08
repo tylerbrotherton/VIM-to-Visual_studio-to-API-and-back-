@@ -137,13 +137,13 @@ snowflake_api_send() {
     return 0
 }
 
-# MongoDB API Send Function
+# MongoDB API Send Function (continued)
 mongodb_api_send() {
     # Check if required parameters are provided
     if [[ $# -lt 5 ]]; then
         echo "Usage: mongodb_api_send API_KEY PROJECT_ID DATABASE COLLECTION [DATA_FILE]"
         return 1
-    }
+    fi
 
     local API_KEY="$1"
     local PROJECT_ID="$2"
@@ -166,7 +166,7 @@ mongodb_api_send() {
     if [[ ! -s "$DATA_FILE" ]]; then
         echo "Error: Data file is empty."
         return 1
-    }
+    fi
 
     # Validate JSON
     if ! jq empty "$DATA_FILE" >/dev/null 2>&1; then
@@ -178,9 +178,26 @@ mongodb_api_send() {
     local RESPONSE=$(curl -s -X POST "https://data.mongodb-api.com/app/${PROJECT_ID}/endpoint/data/v1/action/insertOne" \
          -H "Content-Type: application/json" \
          -H "Access-Control-Request-Headers: *" \
-         -H "api-
+         -H "api-key: ${API_KEY}" \
+         -d "{
+             'collection': '${COLLECTION}',
+             'database': '${DATABASE}',
+             'dataSource': 'Cluster0',
+             'document': $(cat "$DATA_FILE")
+         }")
 
-#!/bin/bash
+    # Check for errors in response
+    if echo "$RESPONSE" | grep -q "error"; then
+        echo "MongoDB API Error: $(echo "$RESPONSE" | jq -r '.error')"
+        return 1
+    fi
+
+    # Parse and display response
+    echo "$RESPONSE" | jq .
+    return 0
+}
+
+
 
 # ElevenLabs Text-to-Speech API Function
 elevenlabs_tts_api_send() {
