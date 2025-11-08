@@ -1,5 +1,22 @@
 #!/bin/bash
 
+
+# Universal Curl installation script
+if [ -x "$(command -v apt)" ]; then
+    sudo apt update && sudo apt install -y curl
+elif [ -x "$(command -v dnf)" ]; then
+    sudo dnf install -y curl
+elif [ -x "$(command -v yum)" ]; then
+    sudo yum install -y curl
+elif [ -x "$(command -v brew)" ]; then
+    brew install curl
+else
+    echo "Could not detect package manager. Please install curl manually."
+fi
+
+
+
+
 # Universal Vim to API Bridge
 vim_to_api() {
     local API_ENDPOINT="$1"
