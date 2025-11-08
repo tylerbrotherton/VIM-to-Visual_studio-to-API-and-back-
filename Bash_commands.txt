@@ -1,0 +1,12 @@
+# Create script directory
+mkdir -p ~/scripts
+
+# Create the script
+touch ~/scripts/vim_api_send.sh
+
+# Make script executable
+chmod +x ~/scripts/vim_api_send.sh
+
+# Optional: Add to PATH
+echo 'export PATH=$PATH:~/scripts' >> ~/.bashrc
+source ~/.bashrc
