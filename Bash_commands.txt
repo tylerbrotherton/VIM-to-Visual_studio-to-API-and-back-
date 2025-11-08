@@ -1,12 +1,41 @@
-# Create script directory
-mkdir -p ~/scripts
+#!/bin/bash
 
-# Create the script
-touch ~/scripts/vim_api_send.sh
+# Universal Vim to API Bridge
+vim_to_api() {
+    local API_ENDPOINT="$1"
+    local METHOD="${2:-POST}"
+    local AUTH_TYPE="${3:-none}"
+    local AUTH_VALUE="${4:-}"
 
-# Make script executable
-chmod +x ~/scripts/vim_api_send.sh
+    # Capture entire Vim buffer
+    local VIM_CONTENT=$(cat)
 
-# Optional: Add to PATH
-echo 'export PATH=$PATH:~/scripts' >> ~/.bashrc
-source ~/.bashrc
+    # Construct curl command dynamically
+    local CURL_CMD="curl -s -X $METHOD '$API_ENDPOINT'"
+
+    # Add authentication based on type
+    case "$AUTH_TYPE" in
+        bearer)
+            CURL_CMD+=" -H 'Authorization: Bearer $AUTH_VALUE'"
+            ;;
+        basic)
+            CURL_CMD+=" -u '$AUTH_VALUE'"
+            ;;
+        apikey)
+            CURL_CMD+=" -H 'X-API-Key: $AUTH_VALUE'"
+            ;;
+    esac
+
+    # Add content type and data
+    CURL_CMD+=" -H 'Content-Type: application/json' -d '${VIM_CONTENT}'"
+
+    # Execute and save response
+    RESPONSE=$(eval "$CURL_CMD")
+    
+    # Create tmux window with response
+    echo "$RESPONSE" > /tmp/api_response.txt
+    tmux new-window -n "API Response" "less /tmp/api_response.txt"
+}
+
+# Usage example in Vim:
+# :% write !bash vim_api_send.sh "https://api.example.com/endpoint" "POST" "bearer" "your_token"
