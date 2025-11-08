@@ -6,13 +6,21 @@ my disibility and cannot use Visual studio. I'm also aware that this is not perf
 When I say Vim, I mean VIM classic 1991. This is also neoVim compatable, but please reconsider your life
 choices if you use neoVim
 
+
+
+----------Attempt 1----------------------
 how to use this, first download this repo, secondly copy paste "Bash_commands" into your linux terminal or 
 Windows powershell, thirdly add VimPackage to your VIM folder, and finally make the script live by 
 executiving "chmod +x vim-api-sender.sh" in your linux terminal or windows powershell,=.
 
-
 an example of how to prompt this repo in VIM is :% write !curl -X POST https://api.endpoint.com -H "Content
 -Type: application/json" -d @-"
+
+
+Attempt 2
+
+
+
 
 
 This is "serverless" but designed to connect VIM to a server. This is an add-on for VIM, which this repo
