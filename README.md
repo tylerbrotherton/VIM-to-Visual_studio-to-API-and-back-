@@ -11,4 +11,10 @@ Windows powershell, thirdly add VimPackage to your VIM folder, and finally make 
 executiving "chmod +x vim-api-sender.sh" in your linux terminal or windows powershell,=.
 
 
-an example of how to prompt this repo in VIM is :% write !curl -X POST https://api.endpoint.com -H "Content-Type: application/json" -d @-"
+an example of how to prompt this repo in VIM is :% write !curl -X POST https://api.endpoint.com -H "Content
+-Type: application/json" -d @-"
+
+
+This is "serverless" but designed to connect VIM to a server. This is an add-on for VIM, which this repo
+is trying to make connect to the internet thourgh API calls, but this code is "self-contained" and requires
+hardware to run(i.e. open RAM space and a CPU thread, for a moment).
