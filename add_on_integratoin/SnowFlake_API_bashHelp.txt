@@ -1,0 +1,21 @@
+#!/bin/bash
+
+snowflake_api_send() {
+    local ACCOUNT="your_account_name"
+    local USERNAME="your_username"
+    local WAREHOUSE="your_warehouse"
+    local DATABASE="your_database"
+    local SCHEMA="your_schema"
+
+    :%w! "$VIM_BUFFER_FILE"
+
+    curl -s "https://${ACCOUNT}.snowflakecomputing.com/api/v2/statements" \
+         -H "Content-Type: application/json" \
+         -H "Authorization: Basic $(echo -n "${USERNAME}:${PASSWORD}" | base64)" \
+         -d "{
+             \"warehouse\": \"${WAREHOUSE}\",
+             \"database\": \"${DATABASE}\",
+             \"schema\": \"${SCHEMA}\",
+             \"sql\": \"$(cat $VIM_BUFFER_FILE)\"
+         }"
+}
