@@ -1,0 +1,481 @@
+#!/bin/bash
+
+# Logging function
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "[${timestamp}] [${level}] ${message}" >&2
+}
+
+# Validate minimum required arguments
+postgresql_api_send() {
+    # Validate minimum required arguments
+    if [[ $# -lt 5 ]]; then
+        echo "Usage: postgresql_api_send HOST PORT DATABASE USERNAME PASSWORD [QUERY_FILE]"
+        return 1
+    fi
+
+    # Parse arguments
+    local HOST="$1"
+    local PORT="$2"
+    local DATABASE="$3"
+    local USERNAME="$4"
+    local PASSWORD="$5"
+    local QUERY_FILE="${6:-/tmp/postgres_query.sql}"
+
+    # Validate critical parameters
+    if [[ -z "$HOST" || -z "$PORT" || -z "$DATABASE" || -z "$USERNAME" ]]; then
+        echo "Error: Missing critical connection parameters"
+        return 1
+    }
+
+    # Write current buffer to query file if not exists
+    if [[ ! -f "$QUERY_FILE" ]]; then
+        :%w! "$QUERY_FILE"
+    fi
+
+    # Validate query file
+    if [[ ! -s "$QUERY_FILE" ]]; then
+        echo "Error: Query file is empty"
+        return 1
+    }
+
+    # Execute PostgreSQL query with connection parameters
+    PGPASSWORD="$PASSWORD" psql \
+        -h "$HOST" \
+        -p "$PORT" \
+        -d "$DATABASE" \
+        -U "$USERNAME" \
+        -f "$QUERY_FILE" \
+        -t \
+        -A \
+        -F',' \
+        -o "/tmp/postgres_result.csv"
+
+    # Check query execution status
+    if [[ $? -ne 0 ]]; then
+        echo "PostgreSQL query execution failed"
+        return 1
+    fi
+
+    # Display results
+    cat "/tmp/postgres_result.csv"
+    
+    # Optional: clean up
+    rm "/tmp/postgres_result.csv"
+
+    return 0
+}
+
+
+
+
+
+# Snowflake API Send Function
+snowflake_api_send() {
+    # Check if required parameters are provided
+    if [[ $# -lt 6 ]]; then
+        echo "Usage: snowflake_api_send ACCOUNT USERNAME PASSWORD WAREHOUSE DATABASE SCHEMA [SQL_FILE]"
+        return 1
+    }
+
+    local ACCOUNT="$1"
+    local USERNAME="$2"
+    local PASSWORD="$3"
+    local WAREHOUSE="$4"
+    local DATABASE="$5"
+    local SCHEMA="$6"
+    local SQL_FILE="${7:-/tmp/snowflake_query.sql}"
+
+    # Validate input parameters
+    if [[ -z "$ACCOUNT" || -z "$USERNAME" || -z "$PASSWORD" ]]; then
+        echo "Error: Account, username, and password are required."
+        return 1
+    }
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$SQL_FILE" ]]; then
+        :%w! "$SQL_FILE"
+    fi
+
+    # Validate SQL file
+    if [[ ! -s "$SQL_FILE" ]]; then
+        echo "Error: SQL file is empty."
+        return 1
+    }
+
+    # Escape special characters in SQL for JSON
+    local ESCAPED_SQL=$(jq -sR '.' "$SQL_FILE")
+
+    # Perform API call with error handling
+    local RESPONSE=$(curl -s -X POST "https://${ACCOUNT}.snowflakecomputing.com/api/v2/statements" \
+         -H "Content-Type: application/json" \
+         -H "Authorization: Basic $(echo -n "${USERNAME}:${PASSWORD}" | base64)" \
+         -d "{
+             \"warehouse\": \"${WAREHOUSE}\",
+             \"database\": \"${DATABASE}\",
+             \"schema\": \"${SCHEMA}\",
+             \"sql\": ${ESCAPED_SQL}
+         }")
+
+    # Check for curl errors
+    if [[ $? -ne 0 ]]; then
+        echo "Curl request failed."
+        return 1
+    fi
+
+    # Check response for errors
+    if echo "$RESPONSE" | grep -q "error"; then
+        echo "Snowflake API Error:"
+        echo "$RESPONSE" | jq .
+        return 1
+    fi
+
+    # Output successful response
+    echo "$RESPONSE" | jq .
+    return 0
+}
+
+# MongoDB API Send Function
+mongodb_api_send() {
+    # Check if required parameters are provided
+    if [[ $# -lt 5 ]]; then
+        echo "Usage: mongodb_api_send API_KEY PROJECT_ID DATABASE COLLECTION [DATA_FILE]"
+        return 1
+    }
+
+    local API_KEY="$1"
+    local PROJECT_ID="$2"
+    local DATABASE="$3"
+    local COLLECTION="$4"
+    local DATA_FILE="${5:-/tmp/mongodb_data.json}"
+
+    # Validate input parameters
+    if [[ -z "$API_KEY" || -z "$PROJECT_ID" ]]; then
+        echo "Error: API key and Project ID are required."
+        return 1
+    fi
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$DATA_FILE" ]]; then
+        :%w! "$DATA_FILE"
+    fi
+
+    # Validate data file
+    if [[ ! -s "$DATA_FILE" ]]; then
+        echo "Error: Data file is empty."
+        return 1
+    }
+
+    # Validate JSON
+    if ! jq empty "$DATA_FILE" >/dev/null 2>&1; then
+        echo "Error: Invalid JSON in data file."
+        return 1
+    fi
+
+    # Perform API call with error handling
+    local RESPONSE=$(curl -s -X POST "https://data.mongodb-api.com/app/${PROJECT_ID}/endpoint/data/v1/action/insertOne" \
+         -H "Content-Type: application/json" \
+         -H "Access-Control-Request-Headers: *" \
+         -H "api-
+
+#!/bin/bash
+
+# ElevenLabs Text-to-Speech API Function
+elevenlabs_tts_api_send() {
+    if [[ $# -lt 3 ]]; then
+        log_message "ERROR" "Usage: elevenlabs_tts_api_send API_KEY VOICE_ID [TEXT_FILE] [OUTPUT_FILE]"
+        return 1
+    }
+
+    local API_KEY="$1"
+    local VOICE_ID="$2"
+    local TEXT_FILE="${3:-/tmp/tts_input.txt}"
+    local OUTPUT_FILE="${4:-/tmp/tts_output.mp3}"
+
+    # Validate input parameters
+    if [[ -z "$API_KEY" || -z "$VOICE_ID" ]]; then
+        log_message "ERROR" "API Key and Voice ID are required."
+        return 1
+    }
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$TEXT_FILE" ]]; then
+        :%w! "$TEXT_FILE"
+    fi
+
+    # Validate text file
+    if [[ ! -s "$TEXT_FILE" ]]; then
+        log_message "ERROR" "Text file is empty."
+        return 1
+    fi
+
+    # Read text content
+    local TEXT_CONTENT=$(jq -sRr @uri < "$TEXT_FILE")
+
+    # Perform API call
+    local RESPONSE=$(curl -s -X POST "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}" \
+        -H "Accept: audio/mpeg" \
+        -H "Content-Type: application/json" \
+        -H "xi-api-key: ${API_KEY}" \
+        -d "{
+            \"text\": \"$(cat "$TEXT_FILE")\",
+            \"model_id\": \"eleven_monolingual_v1\",
+            \"voice_settings\": {
+                \"stability\": 0.5,
+                \"similarity_boost\": 0.5
+            }
+        }" \
+        -o "$OUTPUT_FILE")
+
+    # Check for errors
+    if [[ $? -ne 0 ]]; then
+        log_message "ERROR" "ElevenLabs API request failed."
+        return 1
+    fi
+
+    # Verify output file was created
+    if [[ ! -s "$OUTPUT_FILE" ]]; then
+        log_message "ERROR" "No audio file generated."
+        return 1
+    fi
+
+    echo "TTS audio generated: $OUTPUT_FILE"
+    return 0
+}
+
+
+# DigitalOcean API Function (continued)
+digitalocean_api_send() {
+    if [[ $# -lt 3 ]]; then
+        log_message "ERROR" "Usage: digitalocean_api_send API_TOKEN ACTION [ACTION_FILE]"
+        return 1
+    }
+
+    local API_TOKEN="$1"
+    local ACTION="$2"
+    local ACTION_FILE="${3:-/tmp/digitalocean_action.json}"
+
+    # Validate input parameters
+    if [[ -z "$API_TOKEN" || -z "$ACTION" ]]; then
+        log_message "ERROR" "API Token and Action are required."
+        return 1
+    fi
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$ACTION_FILE" ]]; then
+        :%w! "$ACTION_FILE"
+    fi
+
+    # Validate JSON file
+    if ! jq empty "$ACTION_FILE" >/dev/null 2>&1; then
+        log_message "ERROR" "Invalid JSON in action file."
+        return 1
+    fi
+
+    # Determine endpoint and HTTP method based on action
+    local ENDPOINT=""
+    local HTTP_METHOD="GET"
+    case "$ACTION" in
+        "create_droplet")
+            ENDPOINT="https://api.digitalocean.com/v2/droplets"
+            HTTP_METHOD="POST"
+            ;;
+        "list_droplets")
+            ENDPOINT="https://api.digitalocean.com/v2/droplets"
+            HTTP_METHOD="GET"
+            ;;
+        "create_volume")
+            ENDPOINT="https://api.digitalocean.com/v2/volumes"
+            HTTP_METHOD="POST"
+            ;;
+        *)
+            log_message "ERROR" "Unsupported DigitalOcean API action: $ACTION"
+            return 1
+            ;;
+    esac
+
+    # Perform API call
+    local RESPONSE=$(curl -s -X "$HTTP_METHOD" "$ENDPOINT" \
+        -H "Authorization: Bearer ${API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d @"$ACTION_FILE")
+
+    # Check for errors
+    if echo "$RESPONSE" | grep -q "error"; then
+        log_message "ERROR" "DigitalOcean API Error: $(echo "$RESPONSE" | jq -r '.message')"
+        return 1
+    fi
+
+    echo "$RESPONSE" | jq .
+    return 0
+}
+
+# Stripe API Function (continued)
+stripe_api_send() {
+    if [[ $# -lt 3 ]]; then
+        log_message "ERROR" "Usage: stripe_api_send SECRET_KEY ACTION [ACTION_FILE]"
+        return 1
+    fi
+
+    local SECRET_KEY="$1"
+    local ACTION="$2"
+    local ACTION_FILE="${3:-/tmp/stripe_action.json}"
+
+    # Validate input parameters
+    if [[ -z "$SECRET_KEY" || -z "$ACTION" ]]; then
+        log_message "ERROR" "Secret Key and Action are required."
+        return 1
+    fi
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$ACTION_FILE" ]]; then
+        :%w! "$ACTION_FILE"
+    fi
+
+    # Validate JSON file
+    if ! jq empty "$ACTION_FILE" >/dev/null 2>&1; then
+        log_message "ERROR" "Invalid JSON in action file."
+        return 1
+    fi
+
+    # Determine endpoint and HTTP method based on action
+    local ENDPOINT=""
+    local HTTP_METHOD="POST"
+    case "$ACTION" in
+        "create_customer")
+            ENDPOINT="https://api.stripe.com/v1/customers"
+            ;;
+        "create_payment_intent")
+            ENDPOINT="https://api.stripe.com/v1/payment_intents"
+            ;;
+        "list_charges")
+            ENDPOINT="https://api.stripe.com/v1/charges"
+            HTTP_METHOD="GET"
+            ;;
+        *)
+            log_message "ERROR" "Unsupported Stripe API action: $ACTION"
+            return 1
+            ;;
+    esac
+
+    # Perform API call
+    local RESPONSE=$(curl -s -X "$HTTP_METHOD" "$ENDPOINT" \
+        -u "${SECRET_KEY}:" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d @"$ACTION_FILE")
+
+    # Check for errors
+    if echo "$RESPONSE" | grep -q "error"; then
+        log_message "ERROR" "Stripe API Error: $(echo "$RESPONSE" | jq -r '.error.message')"
+        return 1
+    fi
+
+    echo "$RESPONSE" | jq .
+    return 0
+}
+
+#!/bin/bash
+
+# Twilio API Function (continued)
+twilio_api_send() {
+    if [[ $# -lt 4 ]]; then
+        log_message "ERROR" "Usage: twilio_api_send ACCOUNT_SID AUTH_TOKEN ACTION [ACTION_FILE]"
+        return 1
+    fi
+
+    local ACCOUNT_SID="$1"
+    local AUTH_TOKEN="$2"
+    local ACTION="$3"
+    local ACTION_FILE="${4:-/tmp/twilio_action.json}"
+
+    # Validate input parameters
+    if [[ -z "$ACCOUNT_SID" || -z "$AUTH_TOKEN" || -z "$ACTION" ]]; then
+        log_message "ERROR" "Account SID, Auth Token, and Action are required."
+        return 1
+    fi
+
+    # Write current buffer to temporary file if no file provided
+    if [[ ! -f "$ACTION_FILE" ]]; then
+        :%w! "$ACTION_FILE"
+    fi
+
+    # Validate JSON file
+    if ! jq empty "$ACTION_FILE" >/dev/null 2>&1; then
+        log_message "ERROR" "Invalid JSON in action file."
+        return 1
+    fi
+
+    # Determine endpoint and HTTP method based on action
+    local ENDPOINT=""
+    local HTTP_METHOD="POST"
+    case "$ACTION" in
+        "send_sms")
+            ENDPOINT="https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json"
+            ;;
+        "list_messages")
+            ENDPOINT="https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json"
+            HTTP_METHOD="GET"
+            ;;
+        "create_call")
+            ENDPOINT="https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Calls.json"
+            ;;
+        *)
+            log_message "ERROR" "Unsupported Twilio API action: $ACTION"
+            return 1
+            ;;
+    esac
+
+    # Perform API call
+    local RESPONSE=$(curl -s -X "$HTTP_METHOD" "$ENDPOINT" \
+        -u "${ACCOUNT_SID}:${AUTH_TOKEN}" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d @"$ACTION_FILE")
+
+    # Check for errors
+    if echo "$RESPONSE" | grep -q "error"; then
+        log_message "ERROR" "Twilio API Error: $(echo "$RESPONSE" | jq -r '.error_message')"
+        return 1
+    fi
+
+    echo "$RESPONSE" | jq .
+    return 0
+}
+
+# Usage Examples
+main() {
+    # Example usage of the API functions
+    case "$1" in
+        "snowflake")
+            snowflake_api_send "my_account" "username" "password" "my_warehouse" "my_database" "my_schema"
+            ;;
+        "mongodb")
+            mongodb_api_send "api_key" "project_id" "database" "collection"
+            ;;
+        "azure")
+            azure_arm_api_send "subscription_id" "resource_group" "access_token"
+            ;;
+        "auth0")
+            auth0_api_send "domain.auth0.com" "client_id" "client_secret"
+            ;;
+        "elevenlabs")
+            elevenlabs_tts_api_send "api_key" "voice_id"
+            ;;
+        "digitalocean")
+            digitalocean_api_send "api_token" "list_droplets"
+            ;;
+        "stripe")
+            stripe_api_send "sk_test_..." "list_charges"
+            ;;
+        "twilio")
+            twilio_api_send "account_sid" "auth_token" "send_sms"
+            ;;
+        *)
+            log_message "ERROR" "Invalid service specified"
+            exit 1
+            ;;
+    esac
+}
+
+# Allow script to be sourced or
