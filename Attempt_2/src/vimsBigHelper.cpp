@@ -16,11 +16,11 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 }
 
 
-std::string fetchGeminiData(const std::string& endpoint_url, const std::string& prompt) {
+std::string fetchAPIData(const std::string& endpoint_url, const std::string& prompt) {
     // 1. Get API Key from environment variable
-    const char* api_key_cstr = std::getenv("GEMINI_API_KEY");
+    const char* api_key_cstr = std::getenv("API_KEY");
     if (api_key_cstr == nullptr) {
-        throw std::runtime_error("Error: GEMINI_API_KEY environment variable not set.");
+        throw std::runtime_error("Error: API_KEY environment variable not set.");
     }
     std::string api_key = api_key_cstr;
 
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     std::string prompt_text = argv[2];
 
     try {
-        std::string output = fetchGeminiData(endpoint, prompt_text);
+        std::string output = fetchAPIData(endpoint, prompt_text);
         std::cout << output << std::endl;
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
