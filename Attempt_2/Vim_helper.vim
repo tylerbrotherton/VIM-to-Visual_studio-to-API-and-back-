@@ -3,14 +3,20 @@
 " 1. Path to your compiled C executable
 let g:VIM_binary_path = '~/VimHleper.exe'
 
-" 2. The Gemini API endpoint URL
+" 2. The Gemini API endpoint URL, for demo purposes
 " Use the model you compiled your C program for, e.g., gemini-2.5-flash
 let g:API_endpoint_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
-" --- Function to Call the External Program ---
+let g:API_key_env= 'API_KEY'  "This pulls from the VImBigHelper
 
 " This function captures the current visual selection or the current line as the prompt.
-function! API_Call(prompt) abort
+function! API_Call(prompt, ...) abort
+    if a:0 >=1
+        let l:endpoint= a:1
+    else 
+        let l:endpoint=g.API_endpoint_url
+    endif
+
     " Shell-escape the arguments to handle spaces and special characters
     let l:endpoint_esc = shellescape(g:API_endpoint_url)
     let l:prompt_esc = shellescape(a:prompt)
@@ -39,13 +45,60 @@ function! API_Call(prompt) abort
     return l:result
 endfunction
 
+function! APIComplete(A, L, P) abort
+    return [g:API_endpoint_url]
+endfunction
 
-" --- User-Facing Commands ---
+
+xnoremap <silent> <leader>ga :<C-u>call s:VisualAPIReplace()<CR>
+
+
+function! s:VisualAPIReplace() range abort
+    " Grab the selected lines as a single prompt string
+    let l:prompt = join(getline(a:firstline, a:lastline), "\n")
+    let l:output = API_Call(l:prompt)
+
+    if empty(l:output)
+        return
+    endif
+
+    " Delete the original range and insert the result
+    execute a:firstline . ',' . a:lastline . 'delete _'
+    call append(a:firstline - 1, split(l:output, "\n"))
+endfunction
+
 
 " 1. Command for Normal/Visual mode (replaces selected text or inserts at cursor)
 " The -range=% means it can operate on the whole file, a range of lines, or a visual selection.
 " -nargs=1 means it takes one argument (the prompt, unless text is selected).
-command! -nargs=1 -range=% GeminiAsk call s:APIexecute(<line1>, <line2>, <q-args>)
+command! -nargs=+ -complete= customlist, APIComplete, APIAsk call s:APIask(<f-args>)
+
+function! s:APIAsk(...) abort
+    if a:0 ==0 
+        echohl ErrorMsg
+        echom 'Usage: APIAsk [endpoint] <prompt>'
+        echohl None
+        return
+    endif
+
+    if a:1 =~# '^https\?://'
+        let l:endpoint= a:1
+        let l:prompt = join(a:000[1:], ' ' )
+    else
+        let l:endpoint=''
+        let l:prompt = join(a:100, ' ')
+    endif
+
+    let l:output=API_Call(l:prompt, l:endpoint)
+
+    if empty(l:output)
+        return
+    endif
+
+    call append(line('.'), split(l:output, "\n"))
+endfunction
+
+
 
 " Helper function for the command
 function! s:APIexecute(line1, line2, initial_prompt) abort
@@ -92,3 +145,18 @@ endfunction
 
 " 2. A more direct, simple-to-use Normal mode mapping
       nnoremap <leader>gm :call append('.', API_Call(input("API Prompt: ")) . "\n")<CR>
+
+nnoremap <silent> <leader>gm :call s:PromptAndAppend()<CR>
+
+function! s:PromptAndAppend() abort
+    let l:prompt = input('API Prompt: ')
+    if empty(l:prompt)
+        return
+    endif
+    let l:output = API_Call(l:prompt)
+    if empty(l:output)
+        return
+    endif
+    call append(line('.'), split(l:output, "\n"))
+endfunction
+
