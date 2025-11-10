@@ -8,12 +8,7 @@ Next, add the following code to your `~/.vimrc` file. This code creates the VimL
 
 I've created a text file with the VimL code for you.
 
-
-http://googleusercontent.com/immersive_entry_chip/1
-
 ### How to Use It
-
-After you've saved the Python script, made it executable, and added the VimL code to your `.vimrc`, restart Vim.
 
 You can now use the new `:CallAPI` command from the Vim command line. It takes two arguments:
 
